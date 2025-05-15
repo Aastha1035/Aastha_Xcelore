@@ -1,0 +1,361 @@
+// Full Project Structure and Code
+
+// -----------------------------
+// 1. ENUMS
+// -----------------------------
+
+// Speciality.java
+package com.xcelore.enums;
+
+public enum Speciality {
+    ORTHOPAEDIC,
+    GYNECOLOGY,
+    DERMATOLOGY,
+    ENT
+}
+
+// Symptom.java
+package com.xcelore.enums;
+
+public enum Symptom {
+    ARTHRITIS(Speciality.ORTHOPAEDIC),
+    BACK_PAIN(Speciality.ORTHOPAEDIC),
+    TISSUE_INJURIES(Speciality.ORTHOPAEDIC),
+    DYSMENORRHEA(Speciality.GYNECOLOGY),
+    SKIN_INFECTION(Speciality.DERMATOLOGY),
+    SKIN_BURN(Speciality.DERMATOLOGY),
+    EAR_PAIN(Speciality.ENT);
+
+    private final Speciality speciality;
+
+    Symptom(Speciality speciality) {
+        this.speciality = speciality;
+    }
+
+    public Speciality getSpeciality() {
+        return speciality;
+    }
+}
+
+// -----------------------------
+// 2. ENTITIES
+// -----------------------------
+
+// Doctor.java
+package com.xcelore.entity;
+
+import com.xcelore.enums.Speciality;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.*;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Doctor {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank
+    @Size(min = 3)
+    private String name;
+
+    @NotBlank
+    @Size(max = 20)
+    private String city;
+
+    @Email
+    private String email;
+
+    @NotBlank
+    @Size(min = 10)
+    private String phoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    private Speciality speciality;
+}
+
+// Patient.java
+package com.xcelore.entity;
+
+import com.xcelore.enums.Symptom;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.*;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Patient {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank
+    @Size(min = 3)
+    private String name;
+
+    @NotBlank
+    @Size(max = 20)
+    private String city;
+
+    @Email
+    private String email;
+
+    @NotBlank
+    @Size(min = 10)
+    private String phoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    private Symptom symptom;
+}
+
+// -----------------------------
+// 3. REPOSITORIES
+// -----------------------------
+
+// DoctorRepository.java
+package com.xcelore.repository;
+
+import com.xcelore.entity.Doctor;
+import com.xcelore.enums.Speciality;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface DoctorRepository extends JpaRepository<Doctor, Long> {
+    List<Doctor> findByCityAndSpeciality(String city, Speciality speciality);
+}
+
+// PatientRepository.java
+package com.xcelore.repository;
+
+import com.xcelore.entity.Patient;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PatientRepository extends JpaRepository<Patient, Long> {}
+
+// -----------------------------
+// 4. SERVICES
+// -----------------------------
+
+// DoctorService.java
+package com.xcelore.service;
+
+import com.xcelore.entity.Doctor;
+import com.xcelore.repository.DoctorRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class DoctorService {
+
+    private final DoctorRepository doctorRepository;
+
+    public DoctorService(DoctorRepository doctorRepository) {
+        this.doctorRepository = doctorRepository;
+    }
+
+    public Doctor addDoctor(Doctor doctor) {
+        return doctorRepository.save(doctor);
+    }
+
+    public void deleteDoctor(Long id) {
+        doctorRepository.deleteById(id);
+    }
+
+    public List<Doctor> findByCityAndSpeciality(String city, Speciality speciality) {
+        return doctorRepository.findByCityAndSpeciality(city, speciality);
+    }
+}
+
+// PatientService.java
+package com.xcelore.service;
+
+import com.xcelore.entity.Patient;
+import com.xcelore.repository.PatientRepository;
+import org.springframework.stereotype.Service;
+
+@Service
+public class PatientService {
+
+    private final PatientRepository patientRepository;
+
+    public PatientService(PatientRepository patientRepository) {
+        this.patientRepository = patientRepository;
+    }
+
+    public Patient addPatient(Patient patient) {
+        return patientRepository.save(patient);
+    }
+
+    public void deletePatient(Long id) {
+        patientRepository.deleteById(id);
+    }
+
+    public Patient getPatient(Long id) {
+        return patientRepository.findById(id).orElse(null);
+    }
+}
+
+// SuggestionService.java
+package com.xcelore.service;
+
+import com.xcelore.entity.Doctor;
+import com.xcelore.entity.Patient;
+import com.xcelore.enums.Speciality;
+import com.xcelore.repository.DoctorRepository;
+import com.xcelore.repository.PatientRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class SuggestionService {
+
+    private final PatientRepository patientRepository;
+    private final DoctorRepository doctorRepository;
+
+    public SuggestionService(PatientRepository patientRepository, DoctorRepository doctorRepository) {
+        this.patientRepository = patientRepository;
+        this.doctorRepository = doctorRepository;
+    }
+
+    public List<Doctor> suggestDoctors(Long patientId) {
+        Patient patient = patientRepository.findById(patientId).orElseThrow(() -> new RuntimeException("Patient not found"));
+        String city = patient.getCity();
+        Speciality speciality = patient.getSymptom().getSpeciality();
+
+        if (!List.of("Delhi", "Noida", "Faridabad").contains(city)) {
+            throw new RuntimeException("We are still waiting to expand to your location");
+        }
+
+        List<Doctor> doctors = doctorRepository.findByCityAndSpeciality(city, speciality);
+        if (doctors.isEmpty()) {
+            throw new RuntimeException("There isn’t any doctor present at your location for your symptom");
+        }
+
+        return doctors;
+    }
+}
+
+// -----------------------------
+// 5. CONTROLLERS
+// -----------------------------
+
+// DoctorController.java
+package com.xcelore.controller;
+
+import com.xcelore.entity.Doctor;
+import com.xcelore.service.DoctorService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/doctors")
+public class DoctorController {
+
+    private final DoctorService doctorService;
+
+    public DoctorController(DoctorService doctorService) {
+        this.doctorService = doctorService;
+    }
+
+    @PostMapping
+    public ResponseEntity<Doctor> addDoctor(@RequestBody Doctor doctor) {
+        return ResponseEntity.ok(doctorService.addDoctor(doctor));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDoctor(@PathVariable Long id) {
+        doctorService.deleteDoctor(id);
+        return ResponseEntity.ok().build();
+    }
+}
+
+// PatientController.java
+package com.xcelore.controller;
+
+import com.xcelore.entity.Patient;
+import com.xcelore.service.PatientService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/patients")
+public class PatientController {
+
+    private final PatientService patientService;
+
+    public PatientController(PatientService patientService) {
+        this.patientService = patientService;
+    }
+
+    @PostMapping
+    public ResponseEntity<Patient> addPatient(@RequestBody Patient patient) {
+        return ResponseEntity.ok(patientService.addPatient(patient));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePatient(@PathVariable Long id) {
+        patientService.deletePatient(id);
+        return ResponseEntity.ok().build();
+    }
+}
+
+// SuggestionController.java
+package com.xcelore.controller;
+
+import com.xcelore.entity.Doctor;
+import com.xcelore.service.SuggestionService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/suggestions")
+public class SuggestionController {
+
+    private final SuggestionService suggestionService;
+
+    public SuggestionController(SuggestionService suggestionService) {
+        this.suggestionService = suggestionService;
+    }
+
+    @GetMapping("/{patientId}")
+    public ResponseEntity<List<Doctor>> suggestDoctors(@PathVariable Long patientId) {
+        return ResponseEntity.ok(suggestionService.suggestDoctors(patientId));
+    }
+}
+
+// -----------------------------
+// 6. application.properties
+// -----------------------------
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.h2.console.enabled=true
+spring.jpa.show-sql=true
+spring.jpa.hibernate.ddl-auto=update
+
+// -----------------------------
+// 7. README.md - Include manually
+// -----------------------------
+// - Describe the project
+// - Include screenshots of Postman
+// - Include test cases & sample request/response
+// - Include Swagger link if configured
+
+// -----------------------------
+// 8. Postman Collection - Include manually
+// -----------------------------
+// Save and export your tested requests and add to /postman/ folder
