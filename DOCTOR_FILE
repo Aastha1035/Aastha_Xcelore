@@ -1,0 +1,24 @@
+
+DOCTOR CODE---->
+
+
+@Entity
+public class Doctor {
+    @Id @GeneratedValue
+    private Long id;
+
+    @NotBlank @Size(min = 3)
+    private String name;
+
+    @NotBlank @Size(max = 20)
+    private String city;
+
+    @Email
+    private String email;
+
+    @NotBlank @Size(min = 10)
+    private String phoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    private Speciality speciality;
+}
